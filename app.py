@@ -52,10 +52,19 @@ if st.button("Analyse Tender"):
 
     st.subheader("Market Intelligence")
 
-    st.metric("Confidence", "Medium")
-    st.metric("Expected Winning Fee", "£120,000")
-    st.metric("Market Uncertainty", "18%")
-    st.metric("Award Position Index", "0.62")
+    col1, col2, col3, col4 = st.columns(4)
+
+    with col1:
+        st.metric("Confidence", "Medium")
+
+    with col2:
+        st.metric("Expected Winning Fee", "£120,000")
+
+    with col3:
+        st.metric("Market Uncertainty", "18%")
+
+    with col4:
+        st.metric("Award Position Index", "0.62")
 
     st.subheader("Comparable Projects")
 
@@ -65,10 +74,10 @@ if st.button("Analyse Tender"):
             "Detailed Design Framework",
             "Junction Improvement"
         ],
-        "Similarity":[0.91,0.84,0.80]
+        "Similarity": [0.91, 0.84, 0.80]
     })
 
-    st.dataframe(sample)
+    st.dataframe(sample, use_container_width=True)
 
     st.subheader("Notes")
 
