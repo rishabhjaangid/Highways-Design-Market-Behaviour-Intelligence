@@ -79,4 +79,3 @@ if st.button("Analyse Tender"):
         "This is currently a demonstration interface. "
         "The next step is to connect it to the intelligence engine."
     )
-``
