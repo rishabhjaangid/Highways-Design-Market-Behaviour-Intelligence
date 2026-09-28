@@ -15,11 +15,11 @@ def clean_text(text):
 # Load dataset
 df = pd.read_excel(FILE, engine="openpyxl")
 
-for col in ["Value Low", "Value High", "Awarded Value"]:
-    df[col] = pd.to_numeric(df[col], errors="coerce")
+#for col in ["Value Low", "Value High", "Awarded Value"]:
+    #df[col] = pd.to_numeric(df[col], errors="coerce")
 
-for col in ["Organisation Name", "Title", "Description", "Winner"]:
-    df[col] = df[col].fillna("").astype(str)
+#for col in ["Organisation Name", "Title", "Description", "Winner"]:
+    #df[col] = df[col].fillna("").astype(str)
 
 df["Search_Text"] = (
     df["Organisation Name"].apply(clean_text)
