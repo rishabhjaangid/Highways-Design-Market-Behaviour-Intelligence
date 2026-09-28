@@ -1,44 +1,70 @@
 import streamlit as st
-from market_behaviour_engine import run_market_analysis
+import pandas as pd
 
-st.title(
-    "Market Behaviour Intelligence Engine"
+from Market_Behaviour_Intelligence_TFIDF_v7 import (
+    run_market_analysis
 )
 
-description = st.text_area(
-    "Tender Description"
+st.set_page_config(
+    page_title="Market Behaviour Intelligence Engine",
+    layout="wide"
 )
 
-if st.button("Analyse"):
+st.title("Market Behaviour Intelligence Engine")
 
-    result = run_market_analysis(
-        description
-    )
+st.markdown("""
+This prototype analyses publicly available procurement data
+to identify similar projects and provide market intelligence insights.
 
-    st.metric(
-        "Confidence",
-        result["confidence"]
-    )
+⚠️ Experimental tool for discussion and research purposes only.
+""")
 
-    st.metric(
-        "Winning Fee Median",
-        f"£{result['fee_median']:,.0f}"
-    )
+tender_description = st.text_area(
+    "Tender Description",
+    height=250,
+    placeholder="Paste tender description here..."
+)
 
-    st.metric(
-        "Winning Fee P25",
-        f"£{result['fee_p25']:,.0f}"
-    )
+if st.button("Analyse Tender"):
 
-    st.metric(
-        "Winning Fee P75",
-        f"£{result['fee_p75']:,.0f}"
-    )
+    if not tender_description.strip():
+        st.warning("Please enter a tender description.")
+    else:
 
-    st.subheader(
-        "Top Comparable Projects"
-    )
+        with st.spinner("Analysing historic projects..."):
 
-    st.dataframe(
-        result["comparables"]
-    )
+            result = run_market_analysis(
+                tender_description
+            )
+
+        st.success("Analysis Complete")
+
+        st.subheader("Fee Benchmark")
+
+        col1, col2, col3 = st.columns(3)
+
+        with col1:
+            st.metric(
+                "P25 Fee",
+                f"£{result['fee_p25']:,.0f}"
+            )
+
+        with col2:
+            st.metric(
+                "Median Fee",
+                f"£{result['fee_median']:,.0f}"
+            )
+
+        with col3:
+            st.metric(
+                "P75 Fee",
+                f"£{result['fee_p75']:,.0f}"
+            )
+
+        st.subheader("Confidence")
+
+        st.write(
+            result["confidence"]
+        )
+
+        st.subheader("Top Comparable Projects
