@@ -53,11 +53,8 @@ if st.button("Analyse Tender"):
     st.subheader("Market Intelligence")
 
     st.metric("Confidence", "Medium")
-
     st.metric("Expected Winning Fee", "£120,000")
-
     st.metric("Market Uncertainty", "18%")
-
     st.metric("Award Position Index", "0.62")
 
     st.subheader("Comparable Projects")
