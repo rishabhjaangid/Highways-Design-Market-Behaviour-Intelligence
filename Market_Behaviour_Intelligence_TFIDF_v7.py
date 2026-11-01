@@ -1,6 +1,5 @@
 from pathlib import Path
 import re
-import warnings
 
 import numpy as np
 import pandas as pd
@@ -35,22 +34,12 @@ MAX_AWARD_VALUE = 1_000_000_000
 REMOVE_FEE_OUTLIERS = True
 PREMIUM_ZERO_TOLERANCE = 0.000001
 
-pd.set_option("display.max_colwidth", 220)
-pd.set_option("display.float_format", lambda value: f"{value:,.2f}")
-
-warnings.filterwarnings(
-    "default",
-    category=pd.errors.PerformanceWarning,
-)
-
 
 # ============================================================
-# TEXT FUNCTIONS
+# TEXT CLEANING
 # ============================================================
 
 def clean_text(text):
-    """Clean text for classification and TF-IDF matching."""
-
     if pd.isna(text):
         return ""
 
@@ -61,254 +50,227 @@ def clean_text(text):
     return text.strip().lower()
 
 
-def classify_project(text):
-    """Assign one primary classification to a historic project."""
+# ============================================================
+# PROJECT CLASSIFICATION
+# ============================================================
 
+def classify_project(text):
     text = clean_text(text)
 
-    if any(
-        term in text
-        for term in [
-            "framework",
-            "framework agreement",
-            "professional services partnership",
-            "term arrangement",
-            "term consultancy",
-            "panel",
-        ]
-    ):
-        return "Framework / Term Consultancy"
+    classification_rules = [
+        (
+            "Framework / Term Consultancy",
+            [
+                "framework",
+                "framework agreement",
+                "professional services partnership",
+                "term arrangement",
+                "term consultancy",
+                "panel",
+            ],
+        ),
+        (
+            "Construction / Physical Works",
+            [
+                "construction",
+                "demolition",
+                "scaffolding",
+                "supply and installation",
+                "installation of",
+                "replacement of lighting",
+                "new build",
+                "building works",
+            ],
+        ),
+        (
+            "Business Case / Funding",
+            [
+                "business case",
+                "outline business case",
+                "obc",
+                "fbc",
+                "sopc",
+                "economic assessment",
+                "funding approval",
+                "technical evaluator",
+                "local growth fund",
+            ],
+        ),
+        (
+            "Strategic / Technical Partner",
+            [
+                "technical partner",
+                "programme support",
+                "programme director",
+                "mobilisation",
+                "portfolio",
+                "governance",
+            ],
+        ),
+        (
+            "Assurance / Technical Advisor",
+            [
+                "independent technical advisor",
+                "technical advisor",
+                "assurance",
+                "review of detailed design",
+                "technical evaluation",
+            ],
+        ),
+        (
+            "Road Condition Monitoring / Asset Survey",
+            [
+                "road condition monitoring",
+                "rcm",
+                "scrim",
+                "scanner",
+                "ukpms",
+                "pavement survey",
+                "condition survey",
+                "network survey",
+            ],
+        ),
+        (
+            "Traffic Signals / ITS",
+            [
+                "traffic signal",
+                "signals",
+                "signal scheme",
+                "ibus",
+                "vehicle detection",
+                "hadecs",
+                "enforcement",
+                "its",
+            ],
+        ),
+        (
+            "Traffic / Transport Modelling",
+            [
+                "traffic modelling",
+                "transport modelling",
+                "traffic model",
+                "transport model",
+                "modelling",
+                "model update",
+            ],
+        ),
+        (
+            "Active Travel / Walking / Cycling",
+            [
+                "active travel",
+                "cycling",
+                "cycleway",
+                "cycle route",
+                "walking",
+                "pedestrian",
+                "lcwip",
+            ],
+        ),
+        (
+            "Bus Priority / Public Transport",
+            [
+                "bus priority",
+                "bsip",
+                "bus service improvement",
+                "bus route",
+                "public transport",
+            ],
+        ),
+        (
+            "Public Realm / Urban Realm",
+            [
+                "public realm",
+                "urban realm",
+                "town centre",
+                "city centre",
+                "streetscape",
+                "event spaces",
+            ],
+        ),
+        (
+            "Detailed Design",
+            [
+                "detailed design",
+                "design changes",
+                "as-built drawings",
+                "construction support",
+                "buildability",
+            ],
+        ),
+        (
+            "Preliminary / Concept / Feasibility",
+            [
+                "preliminary design",
+                "concept design",
+                "option appraisal",
+                "options appraisal",
+                "feasibility",
+                "study",
+            ],
+        ),
+        (
+            "Junction / Corridor Improvement",
+            [
+                "junction",
+                "corridor",
+                "road improvement",
+                "highway improvement",
+                "carriageway",
+                "roundabout",
+            ],
+        ),
+        (
+            "Structures / Bridges",
+            [
+                "bridge",
+                "viaduct",
+                "retaining wall",
+                "culvert",
+                "structure",
+                "archway",
+            ],
+        ),
+        (
+            "Drainage / Flood / Water",
+            [
+                "drainage",
+                "flood",
+                "surface water",
+                "suds",
+                "attenuation",
+                "watercourse",
+            ],
+        ),
+        (
+            "Asset / Survey / Data Collection",
+            [
+                "asset valuation",
+                "asset management",
+                "mrm",
+                "survey",
+            ],
+        ),
+        (
+            "Building / Non-Highways Development",
+            [
+                "housing",
+                "homes",
+                "building",
+                "redevelopment",
+                "cemetery",
+            ],
+        ),
+    ]
 
-    if any(
-        term in text
-        for term in [
-            "construction",
-            "demolition",
-            "scaffolding",
-            "supply and installation",
-            "installation of",
-            "replacement of lighting",
-            "new build",
-            "building works",
-        ]
-    ):
-        return "Construction / Physical Works"
-
-    if any(
-        term in text
-        for term in [
-            "business case",
-            "outline business case",
-            "obc",
-            "fbc",
-            "sopc",
-            "economic assessment",
-            "funding approval",
-            "technical evaluator",
-            "local growth fund",
-        ]
-    ):
-        return "Business Case / Funding"
-
-    if any(
-        term in text
-        for term in [
-            "technical partner",
-            "programme support",
-            "programme director",
-            "mobilisation",
-            "portfolio",
-            "governance",
-        ]
-    ):
-        return "Strategic / Technical Partner"
-
-    if any(
-        term in text
-        for term in [
-            "independent technical advisor",
-            "technical advisor",
-            "assurance",
-            "review of detailed design",
-            "technical evaluation",
-        ]
-    ):
-        return "Assurance / Technical Advisor"
-
-    if any(
-        term in text
-        for term in [
-            "road condition monitoring",
-            "rcm",
-            "scrim",
-            "scanner",
-            "ukpms",
-            "pavement survey",
-            "condition survey",
-            "network survey",
-        ]
-    ):
-        return "Road Condition Monitoring / Asset Survey"
-
-    if any(
-        term in text
-        for term in [
-            "traffic signal",
-            "signals",
-            "signal scheme",
-            "ibus",
-            "vehicle detection",
-            "hadecs",
-            "enforcement",
-            "its",
-        ]
-    ):
-        return "Traffic Signals / ITS"
-
-    if any(
-        term in text
-        for term in [
-            "traffic modelling",
-            "transport modelling",
-            "traffic model",
-            "transport model",
-            "modelling",
-            "model update",
-        ]
-    ):
-        return "Traffic / Transport Modelling"
-
-    if any(
-        term in text
-        for term in [
-            "active travel",
-            "cycling",
-            "cycleway",
-            "cycle route",
-            "walking",
-            "pedestrian",
-            "lcwip",
-        ]
-    ):
-        return "Active Travel / Walking / Cycling"
-
-    if any(
-        term in text
-        for term in [
-            "bus priority",
-            "bsip",
-            "bus service improvement",
-            "bus route",
-            "public transport",
-        ]
-    ):
-        return "Bus Priority / Public Transport"
-
-    if any(
-        term in text
-        for term in [
-            "public realm",
-            "urban realm",
-            "town centre",
-            "city centre",
-            "streetscape",
-            "event spaces",
-        ]
-    ):
-        return "Public Realm / Urban Realm"
-
-    if any(
-        term in text
-        for term in [
-            "detailed design",
-            "design changes",
-            "as-built drawings",
-            "construction support",
-            "buildability",
-        ]
-    ):
-        return "Detailed Design"
-
-    if any(
-        term in text
-        for term in [
-            "preliminary design",
-            "concept design",
-            "option appraisal",
-            "options appraisal",
-            "feasibility",
-            "study",
-        ]
-    ):
-        return "Preliminary / Concept / Feasibility"
-
-    if any(
-        term in text
-        for term in [
-            "junction",
-            "corridor",
-            "road improvement",
-            "highway improvement",
-            "carriageway",
-            "roundabout",
-        ]
-    ):
-        return "Junction / Corridor Improvement"
-
-    if any(
-        term in text
-        for term in [
-            "bridge",
-            "viaduct",
-            "retaining wall",
-            "culvert",
-            "structure",
-            "archway",
-        ]
-    ):
-        return "Structures / Bridges"
-
-    if any(
-        term in text
-        for term in [
-            "drainage",
-            "flood",
-            "surface water",
-            "suds",
-            "attenuation",
-            "watercourse",
-        ]
-    ):
-        return "Drainage / Flood / Water"
-
-    if any(
-        term in text
-        for term in [
-            "asset valuation",
-            "asset management",
-            "mrm",
-            "survey",
-        ]
-    ):
-        return "Asset / Survey / Data Collection"
-
-    if any(
-        term in text
-        for term in [
-            "housing",
-            "homes",
-            "building",
-            "redevelopment",
-            "cemetery",
-        ]
-    ):
-        return "Building / Non-Highways Development"
+    for classification, keywords in classification_rules:
+        if any(keyword in text for keyword in keywords):
+            return classification
 
     return "Other"
 
 
 # ============================================================
-# TAG DICTIONARY
+# TAGS
 # ============================================================
 
 tag_dictionary = {
@@ -434,45 +396,22 @@ tag_dictionary = {
 
 
 def create_tags(text):
-    """Create a comma-separated tag list for a project."""
-
     text = clean_text(text)
-    tags = []
 
-    for tag, keywords in tag_dictionary.items():
-        if any(keyword in text for keyword in keywords):
-            tags.append(tag)
+    tags = [
+        tag
+        for tag, keywords in tag_dictionary.items()
+        if any(keyword in text for keyword in keywords)
+    ]
 
     return ", ".join(tags) if tags else "none"
-
-
-def suggest_tags(description):
-    """Return tags whose keywords appear in a live description."""
-
-    description = clean_text(description)
-    scores = {}
-
-    for tag, keywords in tag_dictionary.items():
-        score = sum(keyword in description for keyword in keywords)
-
-        if score > 0:
-            scores[tag] = score
-
-    return [
-        tag
-        for tag, score in sorted(
-            scores.items(),
-            key=lambda item: item[1],
-            reverse=True,
-        )
-    ]
 
 
 # ============================================================
 # LOAD AND PREPARE DATA
 # ============================================================
 
-required_columns = [
+REQUIRED_COLUMNS = [
     "Organisation Name",
     "Title",
     "Description",
@@ -485,27 +424,23 @@ required_columns = [
 
 
 def load_and_prepare_data():
-    """Load the spreadsheet and create all model fields."""
-
     if not FILE.exists():
         raise FileNotFoundError(
-            f"Could not find '{FILE.name}'. "
-            "Place the spreadsheet in the same GitHub folder "
-            "as this Python file."
+            f"Could not find {FILE.name}. The spreadsheet must be "
+            "in the same GitHub folder as this Python file."
         )
 
     data = pd.read_excel(FILE, engine="openpyxl")
 
     missing_columns = [
         column
-        for column in required_columns
+        for column in REQUIRED_COLUMNS
         if column not in data.columns
     ]
 
     if missing_columns:
         raise ValueError(
-            f"Spreadsheet is missing required columns: "
-            f"{missing_columns}"
+            f"Missing spreadsheet columns: {missing_columns}"
         )
 
     data = data.copy()
@@ -539,19 +474,12 @@ def load_and_prepare_data():
     )
 
     data["Award Year"] = data["Awarded Date"].dt.year
-
-    data["Project Age"] = (
-        CURRENT_YEAR - data["Award Year"]
-    )
+    data["Project Age"] = CURRENT_YEAR - data["Award Year"]
 
     data.loc[
         data["Project Age"].lt(0),
         "Project Age",
     ] = np.nan
-
-    data["Inflation Rate Used"] = (
-        DEFAULT_ANNUAL_INFLATION_RATE
-    )
 
     data["Inflation Factor"] = np.where(
         data["Project Age"].notna(),
@@ -584,25 +512,21 @@ def load_and_prepare_data():
     low_win = has_low & has_win
     win_high = has_high & has_win
 
-    conditions = [
-        full_range,
-        low_win & ~full_range,
-        win_high & ~full_range,
-        low.eq(0),
-        has_win,
-    ]
-
-    choices = [
-        "Full bid range",
-        "Low and win only",
-        "Win and high only",
-        "Zero-low record",
-        "Awarded only",
-    ]
-
     data["Analysis Type"] = np.select(
-        conditions,
-        choices,
+        [
+            full_range,
+            low_win & ~full_range,
+            win_high & ~full_range,
+            low.eq(0),
+            has_win,
+        ],
+        [
+            "Full bid range",
+            "Low and win only",
+            "Win and high only",
+            "Zero-low record",
+            "Awarded only",
+        ],
         default="Data issue or missing awarded value",
     )
 
@@ -640,17 +564,7 @@ def load_and_prepare_data():
         np.nan,
     )
 
-    data["Market Midpoint"] = np.where(
-        has_full_range,
-        (low + high) / 2,
-        np.nan,
-    )
-
-    data["Bid Spread"] = np.where(
-        has_full_range,
-        high - low,
-        np.nan,
-    )
+    market_midpoint = (low + high) / 2
 
     data["Historic Bid Spread Ratio"] = np.where(
         has_full_range,
@@ -660,7 +574,7 @@ def load_and_prepare_data():
 
     data["Market Uncertainty Index"] = np.where(
         has_full_range,
-        data["Bid Spread"] / data["Market Midpoint"],
+        (high - low) / market_midpoint,
         np.nan,
     )
 
@@ -678,13 +592,6 @@ def load_and_prepare_data():
     data["Award Position Index"] = np.where(
         has_full_range,
         (win - low) / (high - low),
-        np.nan,
-    )
-
-    data["Midpoint Deviation %"] = np.where(
-        has_full_range,
-        (win - data["Market Midpoint"])
-        / data["Market Midpoint"],
         np.nan,
     )
 
@@ -802,17 +709,17 @@ def load_and_prepare_data():
             "Benchmark Eligible",
         ] = False
 
-    return data.copy()
+    return data
 
 
 df = load_and_prepare_data()
 
 
 # ============================================================
-# TF-IDF MODEL
+# TERM FREQUENCY-INVERSE DOCUMENT FREQUENCY MODEL
 # ============================================================
 
-custom_stop_words = [
+CUSTOM_STOP_WORDS = [
     "services",
     "service",
     "contract",
@@ -839,12 +746,12 @@ custom_stop_words = [
     "undertake",
 ]
 
-all_stop_words = list(
-    ENGLISH_STOP_WORDS.union(custom_stop_words)
+ALL_STOP_WORDS = list(
+    ENGLISH_STOP_WORDS.union(CUSTOM_STOP_WORDS)
 )
 
 vectorizer = TfidfVectorizer(
-    stop_words=all_stop_words,
+    stop_words=ALL_STOP_WORDS,
     ngram_range=(1, 3),
     max_features=20000,
     min_df=2,
@@ -856,7 +763,7 @@ historic_vectors = vectorizer.fit_transform(
 
 
 # ============================================================
-# COMPARABLE-PROJECT SEARCH
+# COMPARABLE PROJECT SEARCH
 # ============================================================
 
 def normalise_selected_tags(selected_tags):
@@ -875,25 +782,25 @@ def count_tag_matches(
     project_classification,
     selected_tags,
 ):
-    text = (
+    combined_text = (
         f"{project_tags} {project_classification}"
         .lower()
     )
 
-    return sum(tag in text for tag in selected_tags)
+    return sum(
+        tag in combined_text
+        for tag in selected_tags
+    )
 
 
 def find_similar_projects(
     description,
     top_n=TOP_N,
-    only_benchmark_eligible=True,
-    restrict_to_classification=None,
     selected_tags=None,
+    restrict_to_classification=None,
     require_selected_tag_match=REQUIRE_SELECTED_TAG_MATCH,
     tag_match_bonus=TAG_MATCH_BONUS,
 ):
-    """Find and rank comparable historic projects."""
-
     selected_tags = normalise_selected_tags(
         selected_tags
     )
@@ -915,10 +822,9 @@ def find_similar_projects(
     results = df.copy()
     results["Similarity"] = similarities
 
-    if only_benchmark_eligible:
-        results = results[
-            results["Benchmark Eligible"]
-        ].copy()
+    results = results[
+        results["Benchmark Eligible"]
+    ].copy()
 
     if restrict_to_classification is not None:
         results = results[
@@ -930,8 +836,8 @@ def find_similar_projects(
     if selected_tags:
         results["Tag Bonus"] = results.apply(
             lambda row: count_tag_matches(
-                row.get("Project Tags", ""),
-                row.get("Project Classification", ""),
+                row["Project Tags"],
+                row["Project Classification"],
                 selected_tags,
             ),
             axis=1,
@@ -952,27 +858,29 @@ def find_similar_projects(
         + tag_match_bonus * results["Tag Bonus"]
     )
 
-    results = results.sort_values(
-        "Final Score",
-        ascending=False,
+    return (
+        results
+        .sort_values(
+            "Final Score",
+            ascending=False,
+        )
+        .head(top_n)
+        .copy()
     )
-
-    return results.head(top_n).copy()
 
 
 # ============================================================
-# ANALYTICAL HELPERS
+# ANALYTICAL FUNCTIONS
 # ============================================================
 
 def remove_award_value_outliers(
     data,
     value_column="Inflation Adjusted Awarded Value",
 ):
-    """Remove fee outliers using the 1.5 x IQR rule."""
-
-    clean_count = data[value_column].dropna().shape[0]
-
-    if data.empty or clean_count < 4:
+    if (
+        data.empty
+        or data[value_column].dropna().shape[0] < 4
+    ):
         return data.copy()
 
     q1 = data[value_column].quantile(0.25)
@@ -982,21 +890,15 @@ def remove_award_value_outliers(
     if pd.isna(iqr) or iqr == 0:
         return data.copy()
 
-    lower_bound = q1 - 1.5 * iqr
-    upper_bound = q3 + 1.5 * iqr
-
     return data[
         data[value_column].between(
-            lower_bound,
-            upper_bound,
-            inclusive="both",
+            q1 - 1.5 * iqr,
+            q3 + 1.5 * iqr,
         )
     ].copy()
 
 
 def calculate_confidence(similar_projects):
-    """Calculate evidence confidence."""
-
     if similar_projects.empty:
         return "No evidence", 0.0, 0.0
 
@@ -1008,7 +910,7 @@ def calculate_confidence(similar_projects):
         similar_projects["Similarity"].max()
     )
 
-    fee_series = (
+    fees = (
         similar_projects[
             "Inflation Adjusted Awarded Value"
         ]
@@ -1016,28 +918,26 @@ def calculate_confidence(similar_projects):
         .dropna()
     )
 
-    if fee_series.empty or fee_series.mean() == 0:
+    if fees.empty or fees.mean() == 0:
         fee_cv = np.nan
     else:
-        fee_cv = fee_series.std() / fee_series.mean()
+        fee_cv = fees.std() / fees.mean()
 
-    high_confidence = (
+    if (
         match_count >= 20
         and average_similarity >= 0.16
         and top_similarity >= 0.25
         and pd.notna(fee_cv)
         and fee_cv <= 1.0
-    )
+    ):
+        confidence = "High"
 
-    medium_confidence = (
+    elif (
         match_count >= 10
         and average_similarity >= 0.10
-    )
-
-    if high_confidence:
-        confidence = "High"
-    elif medium_confidence:
+    ):
         confidence = "Medium"
+
     else:
         confidence = "Low"
 
@@ -1049,8 +949,6 @@ def calculate_confidence(similar_projects):
 
 
 def weighted_average(values, weights):
-    """Calculate a weighted average with validity checks."""
-
     valid = (
         values.notna()
         & weights.notna()
@@ -1066,35 +964,20 @@ def weighted_average(values, weights):
     )
 
 
-def safe_percentiles(series):
-    """Calculate P25, median and P75 safely."""
-
+def safe_median(series):
     clean = (
         series
         .replace([np.inf, -np.inf], np.nan)
         .dropna()
     )
 
-    if clean.empty:
-        return {
-            "P25": np.nan,
-            "Median": np.nan,
-            "P75": np.nan,
-        }
-
-    return {
-        "P25": clean.quantile(0.25),
-        "Median": clean.median(),
-        "P75": clean.quantile(0.75),
-    }
+    return clean.median() if not clean.empty else np.nan
 
 
 def estimate_vs_benchmark_message(
     live_estimate,
     adjusted_median,
 ):
-    """Interpret the live estimate against the historic median."""
-
     if (
         live_estimate is None
         or pd.isna(live_estimate)
@@ -1109,7 +992,7 @@ def estimate_vs_benchmark_message(
         return (
             "The live estimate is materially higher than the "
             "historic inflation-adjusted median. Check whether "
-            "the scope, duration, procurement structure or risk "
+            "scope, duration, procurement structure or risk "
             "profile is materially different."
         )
 
@@ -1117,8 +1000,7 @@ def estimate_vs_benchmark_message(
         return (
             "The live estimate is materially lower than the "
             "historic inflation-adjusted median. Check whether "
-            "the tender scope is narrower or potentially "
-            "under-budgeted."
+            "the scope is narrower or potentially under-budgeted."
         )
 
     return (
@@ -1128,7 +1010,7 @@ def estimate_vs_benchmark_message(
 
 
 # ============================================================
-# MAIN INTELLIGENCE FUNCTION
+# MAIN MARKET INTELLIGENCE FUNCTION
 # ============================================================
 
 def tender_intelligence(
@@ -1142,16 +1024,6 @@ def tender_intelligence(
     require_selected_tag_match=REQUIRE_SELECTED_TAG_MATCH,
     tag_match_bonus=TAG_MATCH_BONUS,
 ):
-    """
-    Run the complete Market Behaviour Intelligence analysis.
-
-    Returns:
-        summary
-        comparable_projects
-        winner_summary
-        classification_mix
-    """
-
     selected_tags = normalise_selected_tags(
         selected_tags
     )
@@ -1159,11 +1031,10 @@ def tender_intelligence(
     similar = find_similar_projects(
         description=description,
         top_n=top_n,
-        only_benchmark_eligible=True,
+        selected_tags=selected_tags,
         restrict_to_classification=(
             restrict_to_classification
         ),
-        selected_tags=selected_tags,
         require_selected_tag_match=(
             require_selected_tag_match
         ),
@@ -1221,10 +1092,11 @@ def tender_intelligence(
         top_similarity,
     ) = calculate_confidence(similar)
 
-    if not similar.empty:
-        similar["Fee Weight"] = similar["Final Score"]
-    else:
-        similar["Fee Weight"] = pd.Series(dtype=float)
+    similar["Fee Weight"] = (
+        similar["Final Score"]
+        if not similar.empty
+        else pd.Series(dtype=float)
+    )
 
     similarity_weighted_fee = weighted_average(
         similar["Inflation Adjusted Awarded Value"],
@@ -1243,12 +1115,12 @@ def tender_intelligence(
         * positive_premium["Final Score"]
     )
 
-    weighted_premium_factor_all = weighted_average(
+    weighted_premium_all = weighted_average(
         low_win["Winner Premium Over Low"],
         low_win["Premium Weight"],
     )
 
-    weighted_premium_factor_positive = weighted_average(
+    weighted_positive_premium = weighted_average(
         positive_premium["Winner Premium Over Low"],
         positive_premium["Premium Weight"],
     )
@@ -1264,65 +1136,48 @@ def tender_intelligence(
         win_at_low_probability = np.nan
         above_low_probability = np.nan
 
-    if (
-        live_tender_estimate is not None
-        and pd.notna(live_tender_estimate)
-    ):
-        price_led_indicative_fee = (
-            live_tender_estimate
-        )
-    else:
-        price_led_indicative_fee = np.nan
-
-    if (
-        live_tender_estimate is not None
-        and pd.notna(live_tender_estimate)
-        and pd.notna(weighted_premium_factor_all)
-    ):
-        blended_indicative_winner_fee = (
-            live_tender_estimate
-            * (1 + weighted_premium_factor_all)
-        )
-    else:
-        blended_indicative_winner_fee = np.nan
-
-    if (
-        live_tender_estimate is not None
-        and pd.notna(live_tender_estimate)
-        and pd.notna(
-            weighted_premium_factor_positive
-        )
-    ):
-        premium_scenario_indicative_winner_fee = (
-            live_tender_estimate
-            * (
-                1
-                + weighted_premium_factor_positive
-            )
-        )
-    else:
-        premium_scenario_indicative_winner_fee = np.nan
-
-    premium_stats = safe_percentiles(
-        low_win["Winner Premium Over Low"]
+    price_led_fee = (
+        live_tender_estimate
+        if live_tender_estimate is not None
+        else np.nan
     )
 
-    positive_premium_stats = safe_percentiles(
-        positive_premium[
-            "Winner Premium Over Low"
-        ]
+    blended_fee = (
+        live_tender_estimate
+        * (1 + weighted_premium_all)
+        if (
+            live_tender_estimate is not None
+            and pd.notna(weighted_premium_all)
+        )
+        else np.nan
     )
 
-    discount_stats = safe_percentiles(
-        win_high["Winner Discount From High"]
+    premium_fee = (
+        live_tender_estimate
+        * (1 + weighted_positive_premium)
+        if (
+            live_tender_estimate is not None
+            and pd.notna(weighted_positive_premium)
+        )
+        else np.nan
     )
 
-    spread_stats = safe_percentiles(
-        full_range["Historic Bid Spread Ratio"]
+    adjusted_median = (
+        similar[
+            "Inflation Adjusted Awarded Value"
+        ].median()
+        if not similar.empty
+        else np.nan
     )
 
-    api_stats = safe_percentiles(
-        full_range["Award Position Index"]
+    estimate_ratio = (
+        live_tender_estimate / adjusted_median
+        if (
+            live_tender_estimate is not None
+            and pd.notna(adjusted_median)
+            and adjusted_median != 0
+        )
+        else np.nan
     )
 
     winner_summary = (
@@ -1337,33 +1192,6 @@ def tender_intelligence(
         similar["Project Classification"]
         .value_counts()
         .head(10)
-    )
-
-    if similar.empty:
-        adjusted_median = np.nan
-    else:
-        adjusted_median = similar[
-            "Inflation Adjusted Awarded Value"
-        ].median()
-
-    if (
-        live_tender_estimate is not None
-        and pd.notna(live_tender_estimate)
-        and pd.notna(adjusted_median)
-        and adjusted_median != 0
-    ):
-        estimate_ratio = (
-            live_tender_estimate
-            / adjusted_median
-        )
-    else:
-        estimate_ratio = np.nan
-
-    estimate_message = (
-        estimate_vs_benchmark_message(
-            live_tender_estimate,
-            adjusted_median,
-        )
     )
 
     summary = {
@@ -1381,15 +1209,6 @@ def tender_intelligence(
         "Top Similarity": top_similarity,
         "Selected Tags": selected_tags,
         "Live Tender Estimate": live_tender_estimate,
-        "Adjusted Winning Fee Median": (
-            adjusted_median
-        ),
-        "Estimate to Adjusted Median Ratio": (
-            estimate_ratio
-        ),
-        "Estimate Benchmark Message": (
-            estimate_message
-        ),
         "Winning Fee P25": (
             similar["Awarded Value"].quantile(0.25)
             if not similar.empty
@@ -1412,6 +1231,7 @@ def tender_intelligence(
             if not similar.empty
             else np.nan
         ),
+        "Adjusted Winning Fee Median": adjusted_median,
         "Adjusted Winning Fee P75": (
             similar[
                 "Inflation Adjusted Awarded Value"
@@ -1421,6 +1241,15 @@ def tender_intelligence(
         ),
         "Similarity Weighted Adjusted Fee": (
             similarity_weighted_fee
+        ),
+        "Estimate to Adjusted Median Ratio": (
+            estimate_ratio
+        ),
+        "Estimate Benchmark Message": (
+            estimate_vs_benchmark_message(
+                live_tender_estimate,
+                adjusted_median,
+            )
         ),
         "Low and Win Records Used": len(low_win),
         "Won At Low Records Used": len(won_at_low),
@@ -1434,38 +1263,48 @@ def tender_intelligence(
             above_low_probability
         ),
         "Winner Premium Over Low Median": (
-            premium_stats["Median"]
+            safe_median(
+                low_win["Winner Premium Over Low"]
+            )
         ),
         "Positive Premium Median": (
-            positive_premium_stats["Median"]
+            safe_median(
+                positive_premium[
+                    "Winner Premium Over Low"
+                ]
+            )
         ),
         "Weighted Premium Factor All Low-Win Records": (
-            weighted_premium_factor_all
+            weighted_premium_all
         ),
         "Weighted Positive Premium Factor": (
-            weighted_premium_factor_positive
+            weighted_positive_premium
         ),
-        "Price Led Indicative Fee": (
-            price_led_indicative_fee
-        ),
-        "Blended Indicative Winner Fee": (
-            blended_indicative_winner_fee
-        ),
+        "Price Led Indicative Fee": price_led_fee,
+        "Blended Indicative Winner Fee": blended_fee,
         "Premium Scenario Indicative Winner Fee": (
-            premium_scenario_indicative_winner_fee
+            premium_fee
         ),
         "Win and High Records Used": len(win_high),
         "Winner Discount From High Median": (
-            discount_stats["Median"]
+            safe_median(
+                win_high["Winner Discount From High"]
+            )
         ),
         "Full Bid Range Records Used": len(
             full_range
         ),
         "Historic Bid Spread Ratio Median": (
-            spread_stats["Median"]
+            safe_median(
+                full_range[
+                    "Historic Bid Spread Ratio"
+                ]
+            )
         ),
         "Award Position Index Median": (
-            api_stats["Median"]
+            safe_median(
+                full_range["Award Position Index"]
+            )
         ),
     }
 
