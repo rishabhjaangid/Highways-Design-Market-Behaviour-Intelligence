@@ -67,4 +67,4 @@ if st.button("Analyse Tender"):
             result["confidence"]
         )
 
-        st.subheader("Top Comparable Projects
+        st.subheader("Top Comparable Projects")
